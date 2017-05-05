@@ -1,0 +1,106 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "newGuid": {
+      "type": "string",
+      "metadata": {
+        "description": "Enter new GUID, you can generate one from Powershell using new-guid or get one from this site: https://guidgenerator.com/online-guid-generator.aspx"
+      }
+    },
+    "AutomationAccountName": {
+      "type": "string",
+      "metadata": {
+        "description": "Assign a name for the Automation account of your choosing"
+      }
+    },
+    "AutomationRegion": {
+      "type": "string",
+      "defaultValue": "East US 2",
+      "allowedValues": [
+        "Japan East",
+        "East US 2",
+        "West Europe",
+        "Southeast Asia",
+        "South Central US",
+        "North Europe",
+        "Canada Central",
+        "Australia Southeast",
+        "Central India",
+        "Japan East"
+      ],
+      "metadata": {
+        "description": "Specify the region for your Automation account"
+      }
+    },
+    "_artifactsLocationSasToken": {
+      "type": "securestring",
+      "defaultValue": "",
+      "metadata": {
+        "description": "The sasToken required to access _artifactsLocation.  When the template is deployed using the accompanying scripts, a sasToken will be automatically generated"
+      }
+    },
+    "azureAdmin": {
+      "type": "string",
+      "metadata": {
+        "description": "Enter your service admin user, ex: serviceaccount@microsoft.com"
+      }
+    },
+    "azureAdminPwd": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Enter the pwd for the service admin user. The pwd is enrypted during runtime and in the Automation assets"
+      }
+    }
+  },
+  "variables": {
+
+    "branch": "develop",
+    "_artifactsLocation": "[concat('https://raw.githubusercontent.com/Microsoft/MSITARM/',variables('branch'),'/ARO-toolkit')]",
+    "_artifactsLocationSasToken": "",
+
+    "nestedTemplates": {
+      "Automation": "[concat(variables('_artifactsLocation'), '/nestedtemplates/Automation.json', parameters('_artifactsLocationSasToken'))]"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2016-02-01",
+      "name": "Automation",
+      "dependsOn": [
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('nestedTemplates').Automation]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "AutomationAccountName": {
+            "value": "[parameters('AutomationAccountName')]"
+          },
+          "AutomationRegion": {
+            "value": "[parameters('AutomationRegion')]"
+          },
+          "newGuid": {
+            "value": "[parameters('newGuid')]"
+          },
+          "azureAdmin": {
+            "value": "[parameters('azureAdmin')]"
+          },
+          "azureAdminPwd": {
+            "value": "[parameters('azureAdminPwd')]"
+          },
+          "_artifactsLocation": {
+            "value": "[variables('_artifactsLocation')]"
+          },
+          "_artifactsLocationSasToken": {
+            "value": "[variables('_artifactsLocationSasToken')]"
+          }
+        }
+      }
+    }
+  ],
+  "outputs": { }
+}
