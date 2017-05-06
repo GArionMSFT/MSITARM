@@ -1,0 +1,840 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "AutomationAccountName": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Assign a name for the Automation account"
+      }
+    },
+    "AutomationRegion": {
+      "type": "string",
+      "defaultValue": "West Europe",
+      "allowedValues": [
+        "Japan East",
+        "East US 2",
+        "West Europe",
+        "Southeast Asia",
+        "South Central US",
+        "North Europe",
+        "Canada Central",
+        "Australia Southeast",
+        "Central India",
+        "Japan East"
+      ],
+      "metadata": {
+        "description": "Specify the region for your Automation account"
+      }
+    },
+    "newGuid": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Assign a name for the ASR Recovery Vault"
+      }
+    },
+    "azureAdmin": {
+      "type": "string",
+      "metadata": {
+        "description": "Enter your service admin user"
+      }
+    },
+    "azureAdminPwd": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Enter the pwd for the service admin user. The pwd is enrypted during runtime and in the Automation assets"
+      }
+    },
+    "_artifactsLocation": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "The base URI where artifacts required by this template are located"
+      }
+    },
+    "_artifactsLocationSasToken": {
+      "type": "securestring",
+      "defaultValue": "",
+      "metadata": {
+        "description": "The sasToken required to access _artifactsLocation.  When the template is deployed using the accompanying scripts, a sasToken will be automatically generated."
+      }
+    }
+  },
+  "variables": {
+    "psModules": {
+      "azureRmCompute": {
+        "name": "AzureRM.Compute",
+        "url": "https://devopsgallerystorage.blob.core.windows.net/packages/azurerm.compute.2.9.0.nupkg"
+      },     
+      "azureRmProfile": {
+        "name": "AzureRm.Profile",
+        "url": "https://devopsgallerystorage.blob.core.windows.net/packages/azurerm.profile.2.8.0.nupkg"
+      },
+      "azureRmResources": {
+        "name": "AzureRm.Resources",
+        "url": "https://devopsgallerystorage.blob.core.windows.net/packages/azurerm.resources.3.8.0.nupkg"
+      },
+      "azureRmKeyVault": {
+        "name": "AzureRm.KeyVault",
+        "url": "https://devopsgallerystorage.blob.core.windows.net/packages/azurerm.keyvault.2.8.0.nupkg"
+      },
+      "azureRmAutomation": {
+        "name": "AzureRm.Automation",
+        "url": "https://devopsgallerystorage.blob.core.windows.net/packages/azurerm.automation.2.8.0.nupkg"
+      },
+      "azureRmOperationalInsights": {
+        "name": "AzureRm.OperationalInsights",
+        "url": "https://devopsgallerystorage.blob.core.windows.net/packages/azurerm.operationalinsights.2.8.0.nupkg"
+      },
+      "azureRmSiteRecovery": {
+        "name": "AzureRm.SiteRecovery",
+        "url": "https://devopsgallerystorage.blob.core.windows.net/packages/azurerm.siterecovery.3.7.0.nupkg"
+      },
+      "azureRmRecoveryServices": {
+        "name": "AzureRm.RecoveryServices",
+        "url": "https://devopsgallerystorage.blob.core.windows.net/packages/azurerm.recoveryservices.2.8.0.nupkg"
+      },
+      "azureRmBackup": {
+        "name": "AzureRm.Backup",
+        "url": "https://devopsgallerystorage.blob.core.windows.net/packages/azurerm.backup.2.8.0.nupkg"
+      },
+      "azureRmInsights": {
+        "name": "AzureRm.Insights",
+        "url": "https://devopsgallerystorage.blob.core.windows.net/packages/azurerm.insights.2.8.0.nupkg"
+      }
+    },
+    "runbooks": {
+      "Bootstrap_Main": {
+        "name": "Bootstrap_Main",
+        "version": "1.0.0.0",
+        "description": "Configurates Azure Automation account for anything we can't handle in ARM",
+        "type": "PowerShell",
+        "Id": "",
+        "scriptUri": "[concat(parameters('_artifactsLocation'),'/scripts/Bootstrap_Main.ps1 ', parameters('_artifactsLocationSasToken'))]"
+      },
+      "AROToolkit_Redbutton_Abort": {
+        "name": "AROToolkit_Redbutton_Abort",
+        "version": "1.0.0.0",
+        "description": "Abort the ARO Toolkit",
+        "type": "PowerShell",
+        "Id": "",
+        "scriptUri": "[concat(parameters('_artifactsLocation'),'/scripts/AROToolkit_Redbutton_Abort.ps1 ', parameters('_artifactsLocationSasToken'))]"
+      },
+      "ScheduleSnooze_ARMVMOptimizationWrapper": {
+        "name": "ScheduleSnooze_ARMVMOptimizationWrapper",
+        "version": "1.0.0.0",
+        "description": "Parallel execution of scheduled snooze actions",
+        "type": "PowerShell",
+        "Id": "",
+        "scriptUri": "[concat(parameters('_artifactsLocation'),'/scripts/ScheduleSnooze/ScheduleSnooze_ARMVMOptimizationWrapper.ps1', parameters('_artifactsLocationSasToken'))]"
+      },
+      "ScheduleSnooze_StartOrStopAzureRmVM": {
+        "name": "ScheduleSnooze_StartOrStopAzureRmVM",
+        "version": "1.0.0.0",
+        "description": "Placeholder",
+        "type": "PowerShell",
+        "Id": "",
+        "scriptUri": "[concat(parameters('_artifactsLocation'),'/scripts/ScheduleSnooze/ScheduleSnooze_StartOrStopAzureRmVM.ps1', parameters('_artifactsLocationSasToken'))]"
+      },
+      "MegaSnooze_StopAzureRmVM": {
+        "name": "MegaSnooze_StopAzureRmVM",
+        "version": "1.0.0.0",
+        "description": "Runbook to stop indivual ARM VM, called by CreateAlertsForAzureRmVM",
+        "type": "PowerShell",
+        "Id": "",
+        "scriptUri": "[concat(parameters('_artifactsLocation'),'/scripts/Snooze/MegaSnooze_StopAzureRmVM.ps1', parameters('_artifactsLocationSasToken'))]"
+      },
+      "MegaSnooze_CreateAlertsForAzureRmVMWrapper": {
+        "name": "MegaSnooze_CreateAlertsForAzureRmVMWrapper",
+        "version": "1.0.0.0",
+        "description": "Runbook to create alerts for MegaSnooze",
+        "type": "PowerShell",
+        "Id": "",
+        "scriptUri": "[concat(parameters('_artifactsLocation'),'/scripts/Snooze/MegaSnooze_CreateAlertsForAzureRmVMWrapper.ps1', parameters('_artifactsLocationSasToken'))]"
+      },
+      "MegaSnooze_CreateOrDisableAlert": {
+        "name": "MegaSnooze_CreateOrDisableAlert",
+        "version": "1.0.0.0",
+        "description": "Runbook to create or disable alert for megasnooze",
+        "type": "PowerShell",
+        "Id": "",
+        "scriptUri": "[concat(parameters('_artifactsLocation'),'/scripts/Snooze/MegaSnooze_CreateOrDisableAlert.ps1', parameters('_artifactsLocationSasToken'))]"
+      },
+      "MegaSnooze_Disable": {
+        "name": "MegaSnooze_Disable",
+        "version": "1.0.0.0",
+        "description": "Disable the MegaSnooze",
+        "type": "PowerShell",
+        "Id": "",
+        "scriptUri": "[concat(parameters('_artifactsLocation'),'/scripts/Snooze/MegaSnooze_Disable.ps1', parameters('_artifactsLocationSasToken'))]"
+      },
+      "DeleteResourceGroupsWrapper": {
+        "name": "DeleteResourceGroupsWrapper",
+        "version": "1.0.0.0",
+        "description": "This runbook will delete resource groups",
+        "type": "PowerShell",
+        "Id": "",
+        "scriptUri": "[concat(parameters('_artifactsLocation'),'/scripts/DeleteRG/DeleteResourceGroupsWrapper.ps1', parameters('_artifactsLocationSasToken'))]"
+      },
+      "DeleteRG": {
+        "name": "DeleteRG",
+        "version": "1.0.0.0",
+        "description": "This runbook will delete resource groups",
+        "type": "PowerShell",
+        "Id": "",
+        "scriptUri": "[concat(parameters('_artifactsLocation'),'/scripts/DeleteRG/DeleteRG.ps1', parameters('_artifactsLocationSasToken'))]"
+      }
+    },
+      "Internal_AzureSubscriptionId": "Internal_AzureSubscriptionId",
+      "Internal_AROAutomationAccountName": "Internal_AROAutomationAccountName",
+      "Internal_AROResourceGroupName": "Internal_AROResourceGroupName",
+      "External_ExcludeVMNames": "External_ExcludeVMNames",
+      "External_ResourceGroupNames": "External_ResourceGroupNames",     
+      "External_MegaSnooze_Condition": "External_MegaSnooze_Condition",       
+      "External_MegaSnooze_Description": "External_MegaSnooze_Description",      
+      "External_MegaSnooze_MetricName": "External_MegaSnooze_MetricName",     
+      "External_MegaSnooze_Threshold": "External_MegaSnooze_Threshold",   
+      "External_MegaSnooze_TimeAggregationOperator": "External_MegaSnooze_TimeAggregationOperator",   
+      "External_MegaSnooze_TimeWindow": "External_MegaSnooze_TimeWindow",   
+      "azureCredentials": "AzureCredentials",
+      "MSITVersion": "1.0.0.0"
+
+      },
+      "resources": [
+      {
+      "apiversion": "2015-10-31",
+      "location": "[parameters('AutomationRegion')]",
+      "name": "[parameters('AutomationAccountName')]",
+      "type": "Microsoft.Automation/automationAccounts",
+      "tags": {"MSITVersion": "[variables('MSITVersion')]"},
+      "comments": "Automation account",
+      "properties": {
+        "sku": {
+          "name": "Basic"
+        }
+      },
+        "resources": [
+          {
+            "name": "[variables('External_ExcludeVMNames')]",
+            "type": "variables",
+            "apiVersion": "2015-10-31",
+            "dependsOn": [
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]"
+            ],
+            "tags": {},
+            "properties": {
+              "description": "Excluded VMs as comma separated list: vm1,vm2,vm3",
+              "value": "[concat('\"','\"')]"
+            }
+          },
+          {
+            "name": "[variables('External_ResourceGroupNames')]",
+            "type": "variables",
+            "apiVersion": "2015-10-31",
+            "dependsOn": [
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]"
+            ],
+            "tags": {},
+            "properties": {
+              "description": "Resource groups targeted for Snooze actions",
+              "value": "[concat('\"','\"')]"
+            }
+          },
+          {
+            "name": "[variables('External_MegaSnooze_Condition')]",
+            "type": "variables",
+            "apiVersion": "2015-10-31",
+            "dependsOn": [
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]"
+            ],
+            "tags": {},
+            "properties": {
+              "description": "Snooze condition for Azure Alert rule",
+              "value": "[concat('\"','LessThan','\"')]"
+            }
+          },
+          {
+            "name": "[variables('External_MegaSnooze_Description')]",
+            "type": "variables",
+            "apiVersion": "2015-10-31",
+            "dependsOn": [
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]"
+            ],
+            "tags": {},
+            "properties": {
+              "description": "Alert to stop the VM if the CPU % exceed the threshold",
+              "value": "[concat('\"','Alert to stop the VM if the CPU % exceed the threshold','\"')]"
+            }
+          },
+          {
+            "name": "[variables('External_MegaSnooze_MetricName')]",
+            "type": "variables",
+            "apiVersion": "2015-10-31",
+            "dependsOn": [
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]"
+            ],
+            "tags": {},
+            "properties": {
+              "description": "Name of the metric the Azure Alert rule is to be configured for",
+              "value": "[concat('\"','Percentage CPU','\"')]"
+            }
+          },
+          {
+            "name": "[variables('External_MegaSnooze_Threshold')]",
+            "type": "variables",
+            "apiVersion": "2015-10-31",
+            "dependsOn": [
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]"
+            ],
+            "tags": {},
+            "properties": {
+              "description": "Threshold for the Azure Alert rule",
+              "value": "[concat('\"','5','\"')]"
+            }
+          },
+          {
+            "name": "[variables('External_MegaSnooze_TimeAggregationOperator')]",
+            "type": "variables",
+            "apiVersion": "2015-10-31",
+            "dependsOn": [
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]"
+            ],
+            "tags": {},
+            "properties": {
+              "description": "Aggregation operator for the Azure Alert rule over a given time period",
+              "value": "[concat('\"','Average','\"')]"
+            }
+          },
+          {
+            "name": "[variables('External_MegaSnooze_TimeWindow')]",
+            "type": "variables",
+            "apiVersion": "2015-10-31",
+            "dependsOn": [
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]"
+            ],
+            "tags": {},
+            "properties": {
+              "description": "Time window the Azure Alert rule will consider",
+              "value": "[concat('\"','06:00:00','\"')]"
+            }
+          },
+          {
+            "name": "[variables('Internal_AzureSubscriptionId')]",
+            "type": "variables",
+            "apiVersion": "2015-10-31",
+            "dependsOn": [
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]"
+            ],
+            "tags": {
+            },
+            "properties": {
+              "description": "Azure Subscription Id",
+              "isEncrypted": 1,
+              "type": "string",
+              "value": "[concat('\"',subscription().subscriptionId,'\"')]"
+            }
+          },
+          {
+            "name": "[variables('azureCredentials')]",
+            "type": "credentials",
+            "apiVersion": "2015-10-31",
+            "dependsOn": [
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]"
+            ],
+            "tags": {},
+            "properties": {
+              "description": "Azure Subscription Credentials",
+              "password": "[parameters('azureAdminPwd')]",
+              "userName": "[parameters('azureAdmin')]"
+            }
+          },
+          {
+            "name": "[variables('Internal_AROAutomationAccountName')]",
+            "type": "variables",
+            "apiVersion": "2015-10-31",
+            "dependsOn": [
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]"
+            ],
+            "tags": {},
+            "properties": {
+              "description": "OMS Azure Automation Account Name",
+              "value": "[concat('\"',parameters('AutomationAccountName'),'\"')]"
+            }
+          },
+          {
+            "name": "[variables('Internal_AROResourceGroupName')]",
+            "type": "variables",
+            "apiVersion": "2015-10-31",
+            "dependsOn": [
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]"
+            ],
+            "tags": {},
+            "properties": {
+              "description": "ARO Azure Automation Account resource group name",
+              "value": "[concat('\"',resourceGroup().name,'\"')]"
+            }
+          },
+          {
+            "name": "[variables('psModules').azureRmOperationalInsights.name]",
+            "type": "Modules",
+            "apiVersion": "2015-10-31",
+            "tags": {},
+            "dependsOn": [
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmProfile.name)]"
+            ],
+            "properties": {
+              "contentLink": {
+                "uri": "[variables('psModules').azureRmOperationalInsights.url]"
+              }
+            }
+          },
+          {
+            "name": "[variables('psModules').azureRmInsights.name]",
+            "type": "Modules",
+            "apiVersion": "2015-10-31",
+            "tags": {},
+            "dependsOn": [
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmProfile.name)]"
+            ],
+            "properties": {
+              "contentLink": {
+                "uri": "[variables('psModules').azureRmInsights.url]"
+              }
+            }
+          },
+          {
+            "name": "[variables('psModules').azureRmSiteRecovery.name]",
+            "type": "Modules",
+            "apiVersion": "2015-10-31",
+            "tags": {},
+            "dependsOn": [
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmProfile.name)]"
+            ],
+            "properties": {
+              "contentLink": {
+                "uri": "[variables('psModules').azureRmSiteRecovery.url]"
+              }
+            }
+          },
+          {
+            "name": "[variables('psModules').azureRmBackup.name]",
+            "type": "Modules",
+            "apiVersion": "2015-10-31",
+            "tags": {},
+            "dependsOn": [
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmProfile.name)]"
+            ],
+            "properties": {
+              "contentLink": {
+                "uri": "[variables('psModules').azureRmBackup.url]"
+              }
+            }
+          },
+          {
+            "name": "[variables('psModules').azureRmRecoveryServices.name]",
+            "type": "Modules",
+            "apiVersion": "2015-10-31",
+            "tags": {},
+            "dependsOn": [
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmProfile.name)]"
+            ],
+            "properties": {
+              "contentLink": {
+                "uri": "[variables('psModules').azureRmRecoveryServices.url]"
+              }
+            }
+          },
+          {
+            "name": "[variables('psModules').azureRmCompute.name]",
+            "type": "Modules",
+            "apiVersion": "2015-10-31",
+            "tags": {},
+            "dependsOn": [
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmProfile.name)]"
+            ],
+            "properties": {
+              "contentLink": {
+                "uri": "[variables('psModules').azureRmCompute.url]"
+              }
+            }
+          },
+          {
+            "name": "[variables('psModules').azureRmProfile.name]",
+            "type": "Modules",
+            "apiVersion": "2015-10-31",
+            "tags": {},
+            "dependsOn": [
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]"
+            ],
+            "properties": {
+              "contentLink": {
+                "uri": "[variables('psModules').azureRmProfile.url]"
+              }
+            }
+          },
+          {
+            "name": "[variables('psModules').azureRmResources.name]",
+            "type": "Modules",
+            "apiVersion": "2015-10-31",
+            "tags": {},
+            "dependsOn": [
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmProfile.name)]"
+            ],
+            "properties": {
+              "contentLink": {
+                "uri": "[variables('psModules').azureRmResources.url]"
+              }
+            }
+          },
+          {
+            "name": "[variables('psModules').azureRmKeyVault.name]",
+            "type": "Modules",
+            "apiVersion": "2015-10-31",
+            "tags": {},
+            "dependsOn": [
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmProfile.name)]"
+            ],
+            "properties": {
+              "contentLink": {
+                "uri": "[variables('psModules').azureRmKeyVault.url]"
+              }
+            }
+          },
+          {
+            "name": "[variables('psModules').azureRmAutomation.name]",
+            "type": "Modules",
+            "apiVersion": "2015-10-31",
+            "tags": {},
+            "dependsOn": [
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmProfile.name)]"
+            ],
+            "properties": {
+              "contentLink": {
+                "uri": "[variables('psModules').azureRmAutomation.url]"
+              }
+            }
+          },
+          {
+            "name": "[variables('runbooks').Bootstrap_Main.name]",
+            "type": "runbooks",
+            "apiVersion": "2015-10-31",
+            "location": "[parameters('AutomationRegion')]",
+            "dependsOn": [
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/variables/', variables('Internal_AzureSubscriptionId'))]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmProfile.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmRecoveryServices.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmSiteRecovery.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmBackup.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmOperationalInsights.name)]"
+            ],
+            "tags": {},
+            "properties": {
+              "runbookType": "[variables('runbooks').Bootstrap_Main.type]",
+              "logProgress": "false",
+              "logVerbose": "false",
+              "description": "[variables('runbooks').Bootstrap_Main.description]",
+              "publishContentLink": {
+                "uri": "[variables('runbooks').Bootstrap_Main.scriptUri]",
+                "version": "[variables('runbooks').Bootstrap_Main.version]"
+              }
+            }
+          },
+          {
+            "name": "[variables('runbooks').AROToolkit_Redbutton_Abort.name]",
+            "type": "runbooks",
+            "apiVersion": "2015-10-31",
+            "location": "[parameters('AutomationRegion')]",
+            "dependsOn": [
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/variables/', variables('Internal_AzureSubscriptionId'))]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmProfile.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmRecoveryServices.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmSiteRecovery.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmBackup.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmOperationalInsights.name)]"
+            ],
+            "tags": {},
+            "properties": {
+              "runbookType": "[variables('runbooks').AROToolkit_Redbutton_Abort.type]",
+              "logProgress": "false",
+              "logVerbose": "false",
+              "description": "[variables('runbooks').AROToolkit_Redbutton_Abort.description]",
+              "publishContentLink": {
+                "uri": "[variables('runbooks').AROToolkit_Redbutton_Abort.scriptUri]",
+                "version": "[variables('runbooks').AROToolkit_Redbutton_Abort.version]"
+              }
+            }
+          },
+          {
+            "name": "[variables('runbooks').ScheduleSnooze_ARMVMOptimizationWrapper.name]",
+            "type": "runbooks",
+            "apiVersion": "2015-10-31",
+            "location": "[parameters('AutomationRegion')]",
+            "dependsOn": [
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/variables/', variables('Internal_AzureSubscriptionId'))]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmProfile.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmRecoveryServices.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmSiteRecovery.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmBackup.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmOperationalInsights.name)]"
+            ],
+            "tags": {},
+            "properties": {
+              "runbookType": "[variables('runbooks').ScheduleSnooze_ARMVMOptimizationWrapper.type]",
+              "logProgress": "false",
+              "logVerbose": "false",
+              "description": "[variables('runbooks').ScheduleSnooze_ARMVMOptimizationWrapper.description]",
+              "publishContentLink": {
+                "uri": "[variables('runbooks').ScheduleSnooze_ARMVMOptimizationWrapper.scriptUri]",
+                "version": "[variables('runbooks').ScheduleSnooze_ARMVMOptimizationWrapper.version]"
+              }
+            }
+          },
+          {
+            "name": "[variables('runbooks').ScheduleSnooze_StartOrStopAzureRmVM.name]",
+            "type": "runbooks",
+            "apiVersion": "2015-10-31",
+            "location": "[parameters('AutomationRegion')]",
+            "dependsOn": [
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/variables/', variables('Internal_AzureSubscriptionId'))]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmProfile.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmRecoveryServices.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmSiteRecovery.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmBackup.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmOperationalInsights.name)]"
+            ],
+            "tags": {},
+            "properties": {
+              "runbookType": "[variables('runbooks').ScheduleSnooze_StartOrStopAzureRmVM.type]",
+              "logProgress": "false",
+              "logVerbose": "false",
+              "description": "[variables('runbooks').ScheduleSnooze_StartOrStopAzureRmVM.description]",
+              "publishContentLink": {
+                "uri": "[variables('runbooks').ScheduleSnooze_StartOrStopAzureRmVM.scriptUri]",
+                "version": "[variables('runbooks').ScheduleSnooze_StartOrStopAzureRmVM.version]"
+              }
+            }
+          },
+          {
+            "name": "[variables('runbooks').MegaSnooze_StopAzureRmVM.name]",
+            "type": "runbooks",
+            "apiVersion": "2015-10-31",
+            "location": "[parameters('AutomationRegion')]",
+            "dependsOn": [
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/variables/', variables('Internal_AzureSubscriptionId'))]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmProfile.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmRecoveryServices.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmSiteRecovery.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmBackup.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmOperationalInsights.name)]"
+            ],
+            "tags": {},
+            "properties": {
+              "runbookType": "[variables('runbooks').MegaSnooze_StopAzureRmVM.type]",
+              "logProgress": "false",
+              "logVerbose": "false",
+              "description": "[variables('runbooks').MegaSnooze_StopAzureRmVM.description]",
+              "publishContentLink": {
+                "uri": "[variables('runbooks').MegaSnooze_StopAzureRmVM.scriptUri]",
+                "version": "[variables('runbooks').MegaSnooze_StopAzureRmVM.version]"
+              }
+            }
+          },
+          {
+            "name": "[variables('runbooks').MegaSnooze_CreateAlertsForAzureRmVMWrapper.name]",
+            "type": "runbooks",
+            "apiVersion": "2015-10-31",
+            "location": "[parameters('AutomationRegion')]",
+            "dependsOn": [
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/variables/', variables('Internal_AzureSubscriptionId'))]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmProfile.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmRecoveryServices.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmSiteRecovery.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmBackup.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmOperationalInsights.name)]"
+            ],
+            "tags": {},
+            "properties": {
+              "runbookType": "[variables('runbooks').MegaSnooze_CreateAlertsForAzureRmVMWrapper.type]",
+              "logProgress": "false",
+              "logVerbose": "false",
+              "description": "[variables('runbooks').MegaSnooze_CreateAlertsForAzureRmVMWrapper.description]",
+              "publishContentLink": {
+                "uri": "[variables('runbooks').MegaSnooze_CreateAlertsForAzureRmVMWrapper.scriptUri]",
+                "version": "[variables('runbooks').MegaSnooze_CreateAlertsForAzureRmVMWrapper.version]"
+              }
+            }
+          },
+          {
+            "name": "[variables('runbooks').MegaSnooze_CreateOrDisableAlert.name]",
+            "type": "runbooks",
+            "apiVersion": "2015-10-31",
+            "location": "[parameters('AutomationRegion')]",
+            "dependsOn": [
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/variables/', variables('Internal_AzureSubscriptionId'))]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmProfile.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmRecoveryServices.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmSiteRecovery.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmBackup.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmOperationalInsights.name)]"
+            ],
+            "tags": {},
+            "properties": {
+              "runbookType": "[variables('runbooks').MegaSnooze_CreateOrDisableAlert.type]",
+              "logProgress": "false",
+              "logVerbose": "false",
+              "description": "[variables('runbooks').MegaSnooze_CreateOrDisableAlert.description]",
+              "publishContentLink": {
+                "uri": "[variables('runbooks').MegaSnooze_CreateOrDisableAlert.scriptUri]",
+                "version": "[variables('runbooks').MegaSnooze_CreateOrDisableAlert.version]"
+              }
+            }
+          },
+          {
+            "name": "[variables('runbooks').MegaSnooze_Disable.name]",
+            "type": "runbooks",
+            "apiVersion": "2015-10-31",
+            "location": "[parameters('AutomationRegion')]",
+            "dependsOn": [
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/variables/', variables('Internal_AzureSubscriptionId'))]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmProfile.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmRecoveryServices.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmSiteRecovery.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmBackup.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmOperationalInsights.name)]"
+            ],
+            "tags": {},
+            "properties": {
+              "runbookType": "[variables('runbooks').MegaSnooze_Disable.type]",
+              "logProgress": "false",
+              "logVerbose": "false",
+              "description": "[variables('runbooks').MegaSnooze_Disable.description]",
+              "publishContentLink": {
+                "uri": "[variables('runbooks').MegaSnooze_Disable.scriptUri]",
+                "version": "[variables('runbooks').MegaSnooze_Disable.version]"
+              }
+            }
+          },
+          {
+            "name": "[variables('runbooks').DeleteResourceGroupsWrapper.name]",
+            "type": "runbooks",
+            "apiVersion": "2015-10-31",
+            "location": "[parameters('AutomationRegion')]",
+            "dependsOn": [
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/variables/', variables('Internal_AzureSubscriptionId'))]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmProfile.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmRecoveryServices.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmSiteRecovery.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmBackup.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmOperationalInsights.name)]"
+            ],
+            "tags": {},
+            "properties": {
+              "runbookType": "[variables('runbooks').DeleteResourceGroupsWrapper.type]",
+              "logProgress": "false",
+              "logVerbose": "false",
+              "description": "[variables('runbooks').DeleteResourceGroupsWrapper.description]",
+              "publishContentLink": {
+                "uri": "[variables('runbooks').DeleteResourceGroupsWrapper.scriptUri]",
+                "version": "[variables('runbooks').DeleteResourceGroupsWrapper.version]"
+              }
+            }
+          },
+          {
+            "name": "[variables('runbooks').DeleteRG.name]",
+            "type": "runbooks",
+            "apiVersion": "2015-10-31",
+            "location": "[parameters('AutomationRegion')]",
+            "dependsOn": [
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'))]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/variables/', variables('Internal_AzureSubscriptionId'))]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmProfile.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmRecoveryServices.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmSiteRecovery.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmBackup.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmOperationalInsights.name)]"
+            ],
+            "tags": {},
+            "properties": {
+              "runbookType": "[variables('runbooks').DeleteRG.type]",
+              "logProgress": "false",
+              "logVerbose": "false",
+              "description": "[variables('runbooks').DeleteRG.description]",
+              "publishContentLink": {
+                "uri": "[variables('runbooks').DeleteRG.scriptUri]",
+                "version": "[variables('runbooks').DeleteRG.version]"
+              }
+            }
+          },
+          {
+            "name": "startBootstrap",
+            "type": "schedules",
+            "apiVersion": "2015-10-31",
+            "tags": {},
+            "properties": {
+              "description": "Starts the bootstrap runbooks",
+              "expiryTime": "9999-12-31T15:59:00-08:00",
+              "isEnabled": true,
+              "interval": null,
+              "frequency": "OneTime"
+            },
+            "dependsOn": [
+              "[resourceId('Microsoft.Automation/automationAccounts', parameters('AutomationAccountName'))]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/runbooks/', variables('runbooks').Bootstrap_Main.name)]"
+            ]
+          },
+          {
+            "name": "[parameters('newGuid')]",
+            "type": "jobSchedules",
+            "apiVersion": "2015-10-31",
+            "location": "[parameters('AutomationRegion')]",
+            "tags": {
+            },
+            "properties": {
+              "schedule": {
+                "name": "startBootstrap"
+              },
+              "runbook": {
+                "name": "Bootstrap_Main"
+              }
+            },
+            "dependsOn": [
+              "[resourceId('Microsoft.Automation/automationAccounts', parameters('AutomationAccountName'))]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/runbooks/', variables('runbooks').Bootstrap_Main.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/schedules/', 'startBootstrap')]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmAutomation.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmProfile.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmResources.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmKeyVault.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmCompute.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmOperationalInsights.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmSiteRecovery.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmRecoveryServices.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmBackup.name)]",
+              "[concat('Microsoft.Automation/automationAccounts/', parameters('AutomationAccountName'), '/Modules/', variables('psModules').azureRmInsights.name)]"
+            ]
+          }
+        ]
+        }
+      ],
+  "outputs": { }
+}
